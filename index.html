@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <style>
+    body { margin: 0; overflow: hidden; font-family: sans-serif; background: transparent; color: white; }
+    #msg { font-size: 36px; }
+  </style>
+  <script>
+    async function load() {
+      const res = await fetch('message.txt?' + Date.now());
+      const text = await res.text();
+      document.getElementById('msg').textContent = text;
+    }
+    setInterval(load, 5000); // refresh every 5 seconds
+    window.onload = load;
+  </script>
+</head>
+<body>
+  <div id="msg"></div>
+</body>
+</html>
