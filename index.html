@@ -8,9 +8,10 @@
     @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@500&display=swap');
 
     :root{
-      --px-per-sec: 80;   /* base speed in pixels/sec */
-      --gap: 48px;        /* space between repeats */
-      --led: #ff2a2a;     /* 🔴 red LED color */
+      /* base speed in pixels per second; JS will scale it */
+      --px-per-sec: 80;
+      --gap: 48px; /* space between repeats */
+      --led: #00ff00;
     }
 
     html, body {
@@ -22,10 +23,10 @@
     .ticker-wrap{
       position: relative;
       width: 100%;
-      height: 40px;
+      height: 40px;               /* adjust as you like */
       overflow: hidden;
       box-sizing: border-box;
-      mask-image: linear-gradient(to right, transparent 0, black 5%, black 95%, transparent 100%);
+      mask-image: linear-gradient(to right, transparent 0, black 5%, black 95%, transparent 100%); /* smooth edges */
     }
 
     .ticker {
@@ -33,35 +34,41 @@
       display: flex;
       gap: var(--gap);
       will-change: transform;
+      /* animation is applied by JS so we can set duration precisely */
     }
 
     .item {
       white-space: nowrap;
       font-family: 'Orbitron', monospace;
-      font-size: 22px;
-      line-height: 40px;
+      font-size: 22px;            /* smaller font */
+      line-height: 40px;          /* match container height */
       color: var(--led);
-      /* LED red glow */
+      /* LED-ish glow */
       text-shadow: 0 0 4px var(--led), 0 0 8px var(--led), 0 0 12px var(--led);
     }
 
+    /* Keyframes for continuous left scroll */
     @keyframes scroll {
       from { transform: translateX(0); }
-      to   { transform: translateX(-50%); }
+      to   { transform: translateX(-50%); } /* we animate a track that's duplicated (200% width), so -50% is one full loop */
     }
 
+    /* When we need to (re)start the animation */
     .running {
       animation-name: scroll;
       animation-timing-function: linear;
       animation-iteration-count: infinite;
+      /* duration set dynamically */
     }
   </style>
 </head>
 <body>
   <div class="ticker-wrap">
     <div id="track" class="ticker">
+      <!-- JS will fill these -->
       <span class="item" id="a"></span>
       <span class="item" id="b"></span>
+      <!-- We duplicate the pair so the container is 200% wide, enabling seamless loop -->
       <span class="item" id="a2" aria-hidden="true"></span>
       <span class="item" id="b2" aria-hidden="true"></span>
     </div>
@@ -86,22 +93,35 @@
     }
 
     function setText(text){
+      // If text is short, add some padding so it still feels like it moves
       const padded = text.length < 10 ? `   ${text}   ` : text;
+
       a.textContent = padded;
       b.textContent = padded;
+
+      // duplicate for seamless loop
       a2.textContent = padded;
       b2.textContent = padded;
     }
 
     function measureAndAnimate(){
+      // Remove animation to recompute sizes cleanly
       track.classList.remove('running');
       track.style.animationDuration = '';
+
+      // Force browser to flush layout
       void track.offsetWidth;
 
+      // The track contains A + B + A2 + B2; the first half (A+B) is our logical loop width
+      // We want the animation to move left by exactly that distance each cycle.
       const firstHalfWidth = a.offsetWidth + b.offsetWidth + parseFloat(getComputedStyle(track).gap || 0);
+      // Compute speed (seconds) from pixels / (px per sec)
       const pxPerSec = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--px-per-sec')) || 80;
+
+      // Ensure a minimum duration so it never looks jittery
       const duration = Math.max(6, firstHalfWidth / pxPerSec);
 
+      // Set duration and start
       track.style.animationDuration = duration + 's';
       track.classList.add('running');
     }
@@ -112,8 +132,11 @@
       measureAndAnimate();
     }
 
+    // Initial load and periodic refresh
     update();
     setInterval(update, 5000);
+
+    // Rerun sizing on window resize
     addEventListener('resize', measureAndAnimate);
   </script>
 </body>
