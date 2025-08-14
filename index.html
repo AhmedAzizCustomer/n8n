@@ -4,12 +4,13 @@
   <meta charset="UTF-8" />
   <title>LED Ticker</title>
   <style>
+    /* Electronic-looking font (fallback to monospace if blocked) */
     @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@500&display=swap');
 
     :root{
-      --px-per-sec: 80;
-      --gap: 48px;
-      --led: #ff2a2a;
+      --px-per-sec: 80;   /* base speed in pixels/sec */
+      --gap: 48px;        /* space between repeats */
+      --led: #ff2a2a;     /* 🔴 red LED color */
     }
 
     html, body {
@@ -21,7 +22,7 @@
     .ticker-wrap{
       position: relative;
       width: 100%;
-      height: 42px;
+      height: 40px;
       overflow: hidden;
       box-sizing: border-box;
       mask-image: linear-gradient(to right, transparent 0, black 5%, black 95%, transparent 100%);
@@ -37,13 +38,11 @@
     .item {
       white-space: nowrap;
       font-family: 'Orbitron', monospace;
-      font-size: 24px;
-      line-height: 42px;
+      font-size: 22px;
+      line-height: 40px;
       color: var(--led);
-      /* Crisper LED glow — less blur */
-      text-shadow: 
-        0 0 2px var(--led),
-        0 0 4px var(--led);
+      /* LED red glow */
+      text-shadow: 0 0 4px var(--led), 0 0 8px var(--led), 0 0 12px var(--led);
     }
 
     @keyframes scroll {
@@ -103,4 +102,19 @@
       const pxPerSec = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--px-per-sec')) || 80;
       const duration = Math.max(6, firstHalfWidth / pxPerSec);
 
-      track.style.animationDuration = duratio
+      track.style.animationDuration = duration + 's';
+      track.classList.add('running');
+    }
+
+    async function update(){
+      const text = await fetchMessage();
+      setText(text);
+      measureAndAnimate();
+    }
+
+    update();
+    setInterval(update, 5000);
+    addEventListener('resize', measureAndAnimate);
+  </script>
+</body>
+</html>
