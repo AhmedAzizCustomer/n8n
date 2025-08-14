@@ -1,55 +1,145 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <meta charset="UTF-8">
+  <meta charset="UTF-8" />
+  <title>LED Ticker</title>
   <style>
+    /* Electronic-looking font (fallback to monospace if blocked) */
     @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@500&display=swap');
 
-    body { 
-      margin: 0; 
-      overflow: hidden; 
-      background: transparent; 
-      color: #00ff00; /* green LED style */
-      font-family: 'Orbitron', monospace;
+    :root{
+      /* base speed in pixels per second; JS will scale it */
+      --px-per-sec: 80;
+      --gap: 48px; /* space between repeats */
+      --led: #00ff00;
     }
-    .scroll-container {
+
+    html, body {
+      margin: 0;
+      height: 100%;
+      background: transparent;
+    }
+
+    .ticker-wrap{
+      position: relative;
       width: 100%;
-      white-space: nowrap;
+      height: 40px;               /* adjust as you like */
       overflow: hidden;
       box-sizing: border-box;
+      mask-image: linear-gradient(to right, transparent 0, black 5%, black 95%, transparent 100%); /* smooth edges */
     }
-    #msg {
-      display: inline-block;
-      padding-left: 100%;
-      animation: scroll-left 10s linear infinite;
-      font-size: 24px; /* smaller font */
-      text-shadow: 0 0 5px #00ff00, 0 0 10px #00ff00; /* glowing effect */
+
+    .ticker {
+      position: absolute;
+      display: flex;
+      gap: var(--gap);
+      will-change: transform;
+      /* animation is applied by JS so we can set duration precisely */
     }
-    @keyframes scroll-left {
-      0% { transform: translateX(0); }
-      100% { transform: translateX(-100%); }
+
+    .item {
+      white-space: nowrap;
+      font-family: 'Orbitron', monospace;
+      font-size: 22px;            /* smaller font */
+      line-height: 40px;          /* match container height */
+      color: var(--led);
+      /* LED-ish glow */
+      text-shadow: 0 0 4px var(--led), 0 0 8px var(--led), 0 0 12px var(--led);
+    }
+
+    /* Keyframes for continuous left scroll */
+    @keyframes scroll {
+      from { transform: translateX(0); }
+      to   { transform: translateX(-50%); } /* we animate a track that's duplicated (200% width), so -50% is one full loop */
+    }
+
+    /* When we need to (re)start the animation */
+    .running {
+      animation-name: scroll;
+      animation-timing-function: linear;
+      animation-iteration-count: infinite;
+      /* duration set dynamically */
     }
   </style>
-  <script>
-    async function load() {
-      const res = await fetch('message.txt?' + Date.now());
-      const text = await res.text();
-      const msg = document.getElementById('msg');
-      msg.textContent = text;
-      
-      // Restart animation on new text
-      msg.style.animation = 'none';
-      msg.offsetHeight; // trigger reflow
-      msg.style.animation = '';
-    }
-    setInterval(load, 5000); // refresh every 5 seconds
-    window.onload = load;
-  </script>
 </head>
 <body>
-  <div class="scroll-container">
-    <div id="msg"></div>
+  <div class="ticker-wrap">
+    <div id="track" class="ticker">
+      <!-- JS will fill these -->
+      <span class="item" id="a"></span>
+      <span class="item" id="b"></span>
+      <!-- We duplicate the pair so the container is 200% wide, enabling seamless loop -->
+      <span class="item" id="a2" aria-hidden="true"></span>
+      <span class="item" id="b2" aria-hidden="true"></span>
+    </div>
   </div>
+
+  <script>
+    const track = document.getElementById('track');
+    const a = document.getElementById('a');
+    const b = document.getElementById('b');
+    const a2 = document.getElementById('a2');
+    const b2 = document.getElementById('b2');
+
+    async function fetchMessage(){
+      try {
+        const res = await fetch('message.txt?' + Date.now());
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        return (await res.text()).trim() || ' ';
+      } catch (e) {
+        console.error('Fetch failed:', e);
+        return '— unable to load message.txt —';
+      }
+    }
+
+    function setText(text){
+      // If text is short, add some padding so it still feels like it moves
+      const padded = text.length < 10 ? `   ${text}   ` : text;
+
+      a.textContent = padded;
+      b.textContent = padded;
+
+      // duplicate for seamless loop
+      a2.textContent = padded;
+      b2.textContent = padded;
+    }
+
+    function measureAndAnimate(){
+      // Remove animation to recompute sizes cleanly
+      track.classList.remove('running');
+      track.style.animationDuration = '';
+
+      // Force browser to flush layout
+      void track.offsetWidth;
+
+      // The track contains A + B + A2 + B2; the first half (A+B) is our logical loop width
+      // We want the animation to move left by exactly that distance each cycle.
+      const firstHalfWidth = a.offsetWidth + b.offsetWidth + parseFloat(getComputedStyle(track).gap || 0);
+      // Compute speed (seconds) from pixels / (px per sec)
+      const pxPerSec = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--px-per-sec')) || 80;
+
+      // Ensure a minimum duration so it never looks jittery
+      const duration = Math.max(6, firstHalfWidth / pxPerSec);
+
+      // Set duration and start
+      track.style.animationDuration = duration + 's';
+      track.classList.add('running');
+    }
+
+    async function update(){
+      const text = await fetchMessage();
+      setText(text);
+      measureAndAnimate();
+    }
+
+    // Initial load and periodic refresh
+    update();
+    setInterval(update, 5000);
+
+    // Rerun sizing on window resize
+    addEventListener('resize', measureAndAnimate);
+  </script>
 </body>
 </html>
+
 
